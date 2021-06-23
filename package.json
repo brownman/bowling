@@ -1,0 +1,24 @@
+{
+  "name": "nadav",
+  "version": "1.0.0",
+  "description": "steps: ----- 1 test the game logic 2 add basic express endpoints (later: express.router+controllers) 3 test the api using postman (later:test the api, don't hit the DB (use nock)",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --watch tests/*.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.14.6",
+    "@babel/preset-env": "^7.14.5",
+    "@types/jest": "^26.0.23",
+    "babel-jest": "^27.0.2",
+    "jest": "^27.0.4",
+    "ts-jest": "^27.0.3",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.3.4"
+  },
+  "dependencies": {
+    "ts-node": "^10.0.0"
+  }
+}
