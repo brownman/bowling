@@ -61,34 +61,34 @@ class Frame {
   static isValidFrame(config: Config, rounds: number[]): [boolean | null, Error | null] {
     //console.log({ rounds })
     if (rounds.length === 0 || rounds.length > 2) {
-      return [null, new Error('error: invalid number of rounds:' + rounds)];
+      return [null, new Error('invalid number of rounds:' + rounds)];
     }
 
 
 
 
-    if (rounds && rounds[0]) {
-      if (Number.isInteger(rounds[0]) && rounds[0] <= config.MAX_PINS && rounds[0] > 0) {
+    if (rounds && rounds.length>0) {
+      if (Number.isInteger(rounds[0]) && rounds[0] <= config.MAX_PINS && rounds[0] >= 0) {
 
         if (typeof rounds[1] !== 'undefined') {
-          if (Number.isInteger(rounds[1]) && rounds[1] <= config.MAX_PINS && rounds[1] > 0) {
+          if (Number.isInteger(rounds[1]) && rounds[1] <= config.MAX_PINS && rounds[1] >= 0) {
             if (rounds[0] + rounds[1] <= config.MAX_PINS) {
               return [true, null];
             } else {
-              return [null, new Error('error: pin-down value must be bellow max-pins number')];
+              return [null, new Error('the sum of the pin-down values must be bellow MAX_PINS number')];
             }
           } else {
-            return [null, new Error('error: invalid value for 2nd round')];
+            return [null, new Error('invalid value for 2nd round: should be integer and between 0 to MAX_PINS')];
           }
         } else {
           if (rounds[0] !== config.MAX_PINS) {
-            return [false, new Error("error: 2nd round is mandatory if 1st round wasn't a strike")];
+            return [false, new Error("2nd round is mandatory if 1st round wasn't a strike")];
           } else {
             return [true, null];
           }
         }
       } else {
-        return [null, new Error('error: invalid value for 1st round')];
+        return [null, new Error('invalid value for 1st round: should be integer and between 0 to MAX_PINS')];
       }
     } else {
       return [false, new Error("empty rounds values")];
@@ -174,7 +174,7 @@ class DashboardInput {
     let err;
 
     if (dashboardInput.frames.length !== userInput.frameIndex) {
-      return [null, new Error('error: the frame index is not aligned with the next dashboard\'s frame index: ' + dashboardInput.frames.length + ':' + userInput.frameIndex)];
+      return [null, new Error('the frame index is not aligned with the next dashboard\'s frame index: ' + dashboardInput.frames.length + ':' + userInput.frameIndex)];
     }
  
  
@@ -293,14 +293,23 @@ describe("test game rules", () => {
         expect(err.message).toMatch(expectedResult);
 
       });
-      test.skip("round should be a native number",  () => {
-
+      test("round should be a native number",  () => {
+        const userInput = { frameIndex: 3, rounds: [0,-1] };
+        let data,err;
+        [data, err] = Frame.isValidFrame(my_config, userInput.rounds);
+        expect(err.message).toMatch('invalid value for 2nd round: should be integer and between 0 to MAX_PINS');
       });
-      test.skip("sum of 2 rounds is below the max-pin configured value",  () => {
-
+      test("rounds' sum should be lower than MAX_PINS value",  () => {
+        const userInput = { frameIndex: 3, rounds: [my_config.MAX_PINS,1] };
+        let data,err;
+        [data, err] = Frame.isValidFrame(my_config, userInput.rounds);
+        expect(err.message).toMatch('the sum of the pin-down values must be bellow MAX_PINS number');
       });
-      test.skip("in case of strike - the 2nd round is not set",  () => {
-
+      test("rounds' sum should be lower than MAX_PINS value",  () => {
+        const userInput = { frameIndex: 3, rounds: [1] };
+        let data,err;
+        [data, err] = Frame.isValidFrame(my_config, userInput.rounds);
+        expect(err.message).toMatch('2nd round is mandatory if 1st round wasn\'t a strike');
       });
     });
 
