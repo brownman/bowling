@@ -28,55 +28,51 @@ class Frame {
   score?: number;
   self_score_calculated?: boolean;
 
-  setFrameStatusByScore(rounds: number[]) {
+  setFrameStatusByScore(rounds: number[], config: Config) {
     this.self_score_calculated = false;
-    if (rounds[0] === 10) {
+    if (rounds[0] === config.MAX_PINS) {
       this.status = FrameStatus.STRIKE;
-    } else if (rounds[1] && (rounds[0] + rounds[1]) === 10) {
+    } else if (rounds[1] && (rounds[0] + rounds[1]) === config.MAX_PINS) {
       this.status = FrameStatus.SPARE;
     } else {
       this.status = FrameStatus.NORMAL;
     }
   }
 
-  constructor(rounds: number[], status?: FrameStatus, self_score_calculated?: boolean) {
+  constructor(config: Config, rounds: number[], status?: FrameStatus, self_score_calculated?: boolean) {
     this.self_score_calculated = self_score_calculated;
     this.rounds = rounds;
     if (status) {
       this.status = status;
     } else {
-      this.setFrameStatusByScore(rounds)
+      this.setFrameStatusByScore(rounds, config)
     }
   }
-  
-  static createFrame(userInput, config){
-    const [is_valid,err] = Frame.isValidFrame(userInput, config)
-    if(is_valid){
-      return new Frame(userInput.rounds);
+
+  static createFrame(config: Config, rounds: number[]) {
+    const [is_valid, err] = Frame.isValidFrame(config, rounds)
+    if (is_valid) {
+      return new Frame(config, rounds);
     } else {
-      throw(err);
+      throw (err);
     }
   }
 
-  static isValidFrame(userInput: { frameIndex: number; rounds: number[]; }, config: Config): [boolean | null, Error | null] {
-
-    if (userInput.rounds.length === 0 || userInput.rounds.length > 2) {
-      return [null, new Error('error: invalid number of rounds')];
+  static isValidFrame(config: Config, rounds: number[]): [boolean | null, Error | null] {
+    //console.log({ rounds })
+    if (rounds.length === 0 || rounds.length > 2) {
+      return [null, new Error('error: invalid number of rounds:' + rounds)];
     }
 
 
 
-    if (userInput.frameIndex >= config.MAX_FRAMES + 2) {
-      //organic frame: the index equal to the max frame which determined in the configuration.
-      return [null, new Error('error: no more than 3 rounds can be played on the last organic frame')];
-    }
 
-    if (userInput?.rounds[0]) {
-      if (Number.isInteger(userInput.rounds[0]) && userInput.rounds[0] <= config.MAX_PINS && userInput.rounds[0] > 0) {
+    if (rounds && rounds[0]) {
+      if (Number.isInteger(rounds[0]) && rounds[0] <= config.MAX_PINS && rounds[0] > 0) {
 
-        if (userInput.rounds[1]) {
-          if (Number.isInteger(userInput.rounds[1]) && userInput.rounds[1] <= config.MAX_PINS && userInput.rounds[1] > 0) {
-            if (userInput.rounds[0] + userInput.rounds[1] <= config.MAX_PINS) {
+        if (typeof rounds[1] !== 'undefined') {
+          if (Number.isInteger(rounds[1]) && rounds[1] <= config.MAX_PINS && rounds[1] > 0) {
+            if (rounds[0] + rounds[1] <= config.MAX_PINS) {
               return [true, null];
             } else {
               return [null, new Error('error: pin-down value must be bellow max-pins number')];
@@ -85,7 +81,7 @@ class Frame {
             return [null, new Error('error: invalid value for 2nd round')];
           }
         } else {
-          if (userInput.rounds[0] === config.MAX_PINS) {
+          if (rounds[0] !== config.MAX_PINS) {
             return [false, new Error("error: 2nd round is mandatory if 1st round wasn't a strike")];
           } else {
             return [true, null];
@@ -108,24 +104,33 @@ class DashboardInput {
   config!: Config;
 
 
-
-  constructor(arr: number[][], local_config: Config) {
+  //accept: array of rounds[,]
+  constructor(local_config: Config, arr: number[][]) {
     this.config = local_config;
     this.frames = [];
     //  this.count_extra_rounds(arr, this.config.MAX_FRAMES);
-    const res_is_game_over = DashboardInput.is_game_over(arr, this.config.MAX_FRAMES);
-
+    const res_is_game_over = DashboardInput.is_game_over(local_config, arr, this.config.MAX_FRAMES);
     arr && arr.forEach(
-      (item) => { this.frames.push(new Frame(item)) }
+      (rounds) => {
+        let frame;
+        try {
+          frame = Frame.createFrame(local_config, rounds);
+
+        } catch (e) {
+          throw (e)
+        }
+
+        this.frames.push(frame);
+      }
     );
   }
 
-  public static is_game_over(arr: number[][], max_arr: number): [boolean | null, Error | null] {
+  public static is_game_over(config: Config, arr: number[][], max_arr: number): [boolean | null, Error | null] {
 
     let frameStatus;
 
     if (arr.length - max_arr >= 0) {
-      frameStatus = new Frame(arr[max_arr - 1]).status;
+      frameStatus = new Frame(config, arr[max_arr - 1]).status;
 
       //there are more rounds beyond the latest frame
       const extra_rounds: number | undefined = Utils.count_extra_rounds(arr, max_arr);
@@ -164,30 +169,31 @@ class DashboardInput {
   }
 
 
+  //[undefined|  null, Error | null] 
+  getUpdatedDashboard(userInput: { frameIndex: number; rounds: number[]; }, dashboardInput: DashboardInput): [null|any, null|Error] {
+    let err;
 
-  getUpdatedDashboard(userInput: { frameIndex: number; rounds: number[]; }, dashboardInput: DashboardInput) {
-    return new Promise((resolve, reject) => {
-      let data, err;
+    if (dashboardInput.frames.length !== userInput.frameIndex) {
+      return [null, new Error('error: the frame index is not aligned with the next dashboard\'s frame index: ' + dashboardInput.frames.length + ':' + userInput.frameIndex)];
+    }
+ 
+ 
+      let frame_tmp;
+      try {
+        frame_tmp = Frame.createFrame(this.config, userInput.rounds);
 
-      if (dashboardInput.frames.length !== userInput.frameIndex) {
-        return reject(new Error('error: the frame index is not aligned with the next dashboard\'s frame index' + dashboardInput.frames.length + ':' + userInput.frameIndex));
+      } catch (e) {
+        return [null, e];
       }
-
-      [data, err] = Frame.isValidFrame(userInput, this.config);
-      if (err) {
-        return reject(err)
-      }
-      if (data === true) {
-        dashboardInput.frames.push(new Frame(userInput.rounds));
-        return resolve(dashboardInput);
-      }
-    });
+      dashboardInput.frames.push(frame_tmp);
+      return [dashboardInput, null];
+ 
   }
 
   calculateScore() {
     const MAX_FRAMES = this.frames.length;
     let score_next_round: number | undefined;
-    let score_next_2_rounds: number | undefined;
+    let score_next_2nd_rounds: number | undefined;
     let total_score = 0;
     this.frames.map((frame, index) => {
       if (index < this.config.MAX_FRAMES) {
@@ -212,10 +218,10 @@ class DashboardInput {
 
             if (score_next_round) {
               frame.score += score_next_round!;
-              score_next_2_rounds = this.next_2_rounds_score(index);
-              //console.info({ score_next_2_rounds })
-              if (score_next_2_rounds) {
-                frame.score += score_next_2_rounds!; frame.self_score_calculated = true;
+              score_next_2nd_rounds = this.next_2_rounds_score(index);
+              //console.info({ score_next_2nd_rounds })
+              if (score_next_2nd_rounds) {
+                frame.score += score_next_2nd_rounds!; frame.self_score_calculated = true;
               }
 
             }
@@ -255,62 +261,72 @@ describe("test game rules", () => {
   });
 
   describe("dashboard class", () => {
-    describe("extending the dashboard with invalid frame produces an Error", () => {
+    describe("trying to extend the dashboard with invalid frame produces an Error", () => {
 
-      test("frameIndex not in sync with the dashboard's latest frame position", async () => {
+      test("frameIndex not in sync with the dashboard's latest frame position",  () => {
+        let dashboardUpdated, err;
         const userInput = { frameIndex: 3, rounds: [5, 5] };
-        const dashboard: DashboardInput = new DashboardInput([[1, 2], [1, 2]], my_config);
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2], [1, 2]]);
         const expectedResult = 'frame index is not aligned';
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard).catch((err) => {
-          expect(err.message).toMatch(expectedResult);
-        });
+        [dashboardUpdated, err] = dashboard.getUpdatedDashboard(userInput, dashboard);
+        expect(err.message).toMatch(expectedResult);
+
       });
 
-      test("frame with no rounds", async () => {
+      test("frame with no rounds",  () => {
+        let dashboardUpdated, err;
         const userInput = { frameIndex: 2, rounds: [] };
-        const dashboard: DashboardInput = new DashboardInput([[1, 2], [1, 2]], my_config);
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2], [1, 2]]);
         const expectedResult = 'number of rounds';
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard).catch((err) => {
-          expect(err.message).toMatch(expectedResult);
-        });
+        [dashboardUpdated, err] = dashboard.getUpdatedDashboard(userInput, dashboard);
+        expect(err.message).toMatch(expectedResult);
+
       });
 
-      test("frame with more than 2 rounds", async () => {
+      test("frame with more than 2 rounds",  () => {
+        let dashboardUpdated, err;
+
         const userInput = { frameIndex: 3, rounds: [1, 2, 3] };
-        const dashboard: DashboardInput = new DashboardInput([[1, 2], [1, 2]], my_config);
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2], [1, 2]]);
         const expectedResult = 'frame index is not aligned';
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard).catch((err) => {
-          expect(err.message).toMatch(expectedResult);
-        });
-      });
-      test.skip("round should be a native number", async () => {
+        [dashboardUpdated, err] = dashboard.getUpdatedDashboard(userInput, dashboard);
+        expect(err.message).toMatch(expectedResult);
 
       });
-      test.skip("sum of 2 rounds is below the max-pin configured value", async () => {
+      test.skip("round should be a native number",  () => {
 
       });
-      test.skip("in case of strike - the 2nd round is not set", async () => {
+      test.skip("sum of 2 rounds is below the max-pin configured value",  () => {
+
+      });
+      test.skip("in case of strike - the 2nd round is not set",  () => {
 
       });
     });
 
     describe("dashboard is extended by adding a valid frame", () => {
-      test("user adds a non-bonus frame", async () => {
-        const dashboard: DashboardInput = new DashboardInput([], my_config);
+      test("user adds a non-bonus frame",  () => {
+        let dashboardUpdated, err;
+
+        const dashboard: DashboardInput = new DashboardInput(my_config, []);
 
         const userInput = { frameIndex: 0, rounds: [1, 2] };
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard);
+        [dashboardUpdated, err] = dashboard.getUpdatedDashboard(userInput, dashboard);
         const expectedResult = { "config": my_config, "frames": [{ "rounds": [1, 2], "self_score_calculated": false, "status": FrameStatus.NORMAL }] };
 
         expect(dashboardUpdated).toEqual(expectedResult);
       });
 
-      test("user adds 2 non-bonus frames", async () => {
-        const dashboard: DashboardInput = new DashboardInput([[1, 2]], my_config);
+      test("user adds 2 non-bonus frames",  () => {
+        let dashboardUpdated, err;
+
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2]]);
         const userInput = { frameIndex: 1, rounds: [1, 2] };
         const expectedResult = { "config": my_config, "frames": [{ "rounds": [1, 2], "self_score_calculated": false, "status": FrameStatus.NORMAL }, { "rounds": [1, 2], "self_score_calculated": false, "status": FrameStatus.NORMAL }] }
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard);
-        expect((dashboardUpdated)).toEqual(expectedResult);
+        const obj = dashboard.getUpdatedDashboard(userInput, dashboard);
+        [dashboardUpdated, err] = obj
+
+        expect(dashboardUpdated).toEqual(expectedResult);
       });
 
     });
@@ -318,25 +334,26 @@ describe("test game rules", () => {
 
     describe("calculate score", () => {
 
-      test("test normal frames (their sum is less than 10)", async () => {
-        const dashboard: DashboardInput = new DashboardInput([[1, 2], [1, 2]], my_config);
+      test("test normal frames (their sum is less than 10)",  () => {
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2], [1, 2]]);
         const dashboard_calculateScore = dashboard.calculateScore();
         const expectedResult =
           [{ "rounds": [1, 2], "score": 3, "self_score_calculated": true, "status": 0 }, { "rounds": [1, 2], "score": 3, "self_score_calculated": true, "status": 0 }];
         expect(dashboard_calculateScore.frames).toEqual(expectedResult);
       });
 
-      test("frame has Spare", async () => {
+      test("frame has Spare",  () => {
+        let dashboardUpdated, err;
         const userInput = { frameIndex: 2, rounds: [5, 5] };
-        const dashboard: DashboardInput = new DashboardInput([[1, 2], [1, 2]], my_config);
-        const dashboardUpdated = await dashboard.getUpdatedDashboard(userInput, dashboard);
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[1, 2], [1, 2]]);
+        [dashboardUpdated, err] = dashboard.getUpdatedDashboard(userInput, dashboard);
 
-        const expectedResult = new DashboardInput([[1, 2], [1, 2], [5, 5]], my_config);
+        const expectedResult = new DashboardInput(my_config, [[1, 2], [1, 2], [5, 5]]);
         expect(JSON.stringify(dashboardUpdated)).toEqual(JSON.stringify(expectedResult));
       });
 
-      test("frames has Strike", async () => {
-        const dashboard: DashboardInput = new DashboardInput([[10], [10], [10], [10]], my_config);
+      test("frames has Strike",  () => {
+        const dashboard: DashboardInput = new DashboardInput(my_config, [[10], [10], [10], [10]]);
         const dashboard_score = dashboard.calculateScore();
         const expectedResult = [{ "rounds": [10], "score": 30, "self_score_calculated": true, "status": 2 }, { "rounds": [10], "score": 30, "self_score_calculated": true, "status": 2 }, { "rounds": [10], "self_score_calculated": false, "status": 2 }, { "rounds": [10], "self_score_calculated": false, "status": 2 }];
         expect(dashboard_score.frames).toEqual(expectedResult);
@@ -349,23 +366,23 @@ describe("test game rules", () => {
 
     describe("a game is over", () => {
       describe("invalid status of dashboard", () => {
-        test("setting a dashboard with invalid number of extra rounds", async () => {
-          const [res_is_game_over, err] = DashboardInput.is_game_over([[10], [10], [10], [10], [8, 1]], my_config.MAX_FRAMES);
+        test("setting a dashboard with invalid number of extra rounds",  () => {
+          const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[10], [10], [10], [10], [8, 1]], my_config.MAX_FRAMES);
           expect(err!.message).toMatch("too many rounds");
         });
       });
 
       describe("valid status of dashboard", () => {
-        test("setting a dashboard with max frames but with no satisfying extra rounds", async () => {
-          const [res_is_game_over, err] = DashboardInput.is_game_over([[1], [10], [10]], my_config.MAX_FRAMES);
+        test("setting a dashboard with max frames but with no satisfying extra rounds",  () => {
+          const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[1], [10], [10]], my_config.MAX_FRAMES);
           expect(res_is_game_over).toBe(false);
         });
-        test("setting a dashboard with max allowed number of extra rounds", async () => {
-          const [res_is_game_over, err] = DashboardInput.is_game_over([[10], [10], [10], [10]], my_config.MAX_FRAMES);
+        test("setting a dashboard with max allowed number of extra rounds",  () => {
+          const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[10], [10], [10], [10]], my_config.MAX_FRAMES);
           expect(res_is_game_over).toBe(true);
         });
-        test("setting a dashboard with max allowed number of extra rounds", async () => {
-          const [res_is_game_over, err] = DashboardInput.is_game_over([[10], [10], [10], [3]], my_config.MAX_FRAMES);
+        test("setting a dashboard with max allowed number of extra rounds",  () => {
+          const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[10], [10], [10], [3]], my_config.MAX_FRAMES);
           expect(res_is_game_over).toBe(true);
         });
       });
