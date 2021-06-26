@@ -4,12 +4,14 @@
   "description": "steps: ----- 1 test the game logic 2 add basic express endpoints (later: express.router+controllers) 3 test the api using postman (later:test the api, don't hit the DB (use nock)",
   "main": "index.js",
   "scripts": {
-    "test": "jest --watch tests/*.ts"
+    "test": "jest --watch {tests,src}/*.ts",
+    "start": "node-ts src/server"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^26.0.23",
+    "express": "^4.17.1",
     "jest": "^27.0.4",
     "ts-jest": "^27.0.3",
     "ts-node": "^10.0.0",
