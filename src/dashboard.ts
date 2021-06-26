@@ -23,7 +23,6 @@ export class Utils {
 }
 
 export class Frame {
-
     rounds!: number[];
     status?: FrameStatus;
     score?: number;
@@ -60,7 +59,6 @@ export class Frame {
     }
 
     static isValidFrame(config: Config, rounds: number[]): [boolean | null, Error | null] {
-
         if (rounds.length === 0 || rounds.length > 2) {
             return [null, new Error('invalid number of rounds:' + rounds)];
         }
@@ -111,18 +109,15 @@ export class DashboardInput {
                 let frame;
                 try {
                     frame = Frame.createFrame(local_config, rounds);
-
                 } catch (e) {
                     throw (e)
                 }
-
                 this.frames.push(frame);
             }
         );
     }
 
     public static is_game_over(config: Config, arr: number[][], max_arr: number): [boolean | null, Error | null] {
-
         let frameStatus;
 
         if (arr.length - max_arr >= 0) {
@@ -164,7 +159,7 @@ export class DashboardInput {
         }
     }
 
-    getUpdatedDashboard(userInput: { frameIndex: number; rounds: number[]; }, dashboardInput: DashboardInput): [null | any, null | Error] {
+    getUpdatedDashboard(userInput: { frameIndex: number; rounds: number[]; }, dashboardInput: DashboardInput): [null | DashboardInput, null | Error] {
         let err;
 
         if (dashboardInput.frames.length !== userInput.frameIndex) {
