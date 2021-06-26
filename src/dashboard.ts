@@ -60,13 +60,10 @@ export class Frame {
     }
 
     static isValidFrame(config: Config, rounds: number[]): [boolean | null, Error | null] {
-        //console.log({ rounds })
+
         if (rounds.length === 0 || rounds.length > 2) {
             return [null, new Error('invalid number of rounds:' + rounds)];
         }
-
-
-
 
         if (rounds && rounds.length > 0) {
             if (Number.isInteger(rounds[0]) && rounds[0] <= config.MAX_PINS && rounds[0] >= 0) {
@@ -95,7 +92,6 @@ export class Frame {
             return [false, new Error("empty rounds values")];
         }
 
-
         return [false, null]
     }
 }
@@ -103,7 +99,6 @@ export class Frame {
 export class DashboardInput {
     frames!: Frame[];
     config!: Config;
-
 
     //accept: array of rounds[,]
     constructor(local_config: Config, arr: number[][]) {
@@ -169,15 +164,12 @@ export class DashboardInput {
         }
     }
 
-
-    //[undefined|  null, Error | null] 
     getUpdatedDashboard(userInput: { frameIndex: number; rounds: number[]; }, dashboardInput: DashboardInput): [null | any, null | Error] {
         let err;
 
         if (dashboardInput.frames.length !== userInput.frameIndex) {
             return [null, new Error('the frame index is not aligned with the next dashboard\'s frame index: ' + dashboardInput.frames.length + ':' + userInput.frameIndex)];
         }
-
 
         let frame_tmp;
         try {
@@ -188,7 +180,6 @@ export class DashboardInput {
         }
         dashboardInput.frames.push(frame_tmp);
         return [dashboardInput, null];
-
     }
 
     calculateScore() {
@@ -230,8 +221,6 @@ export class DashboardInput {
                     default:
                         break;
                 }
-
-
             } else {
                 //extra 1 or 2 frames has no self-score
             }
@@ -241,9 +230,5 @@ export class DashboardInput {
         }) //frames.map
         return { frames: this.frames, total_score: total_score };
     }//calculate
-
-
-
-
 }
 
