@@ -57,7 +57,6 @@ describe("test game rules", () => {
         });
 
         describe("more frame validation", () => {
-
           test("frame with no rounds", () => {
             const userInput = { frameIndex: 2, rounds: [] };
             const expectedResult = 'number of rounds';
@@ -95,18 +94,8 @@ describe("test game rules", () => {
             expect(err.message).toMatch('2nd round is mandatory if 1st round wasn\'t a strike');
           });
         });
-
       });
     });
-
-
-    // describe("trying to extend the dashboard with invalid frame produces an Error", () => {
-
-
-
-    // });
-
-
   });
 
 
@@ -159,14 +148,7 @@ describe("test game rules", () => {
         const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[10], [10], [10], [10]], my_config.MAX_FRAMES);
         expect(res_is_game_over).toBe(true);
       });
-      test("setting a dashboard with max allowed number of extra rounds", () => {
-        const [res_is_game_over, err] = DashboardInput.is_game_over(my_config, [[10], [10], [10], [3]], my_config.MAX_FRAMES);
-        expect(res_is_game_over).toBe(true);
-      });
     });
   });
-
-  // no more than three balls can be rolled in tenth frame
-
 });
 
